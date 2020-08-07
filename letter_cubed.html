@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+      <meta charset="utf-8">
+      <title>Letter Cubed | A variation on the NYT Letter Boxed</title>
+        
+      <link rel="shortcut icon" href="https://i.ibb.co/yNdd61G/temp.png" >
+      <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@600&display=swap" rel="stylesheet"> 
+        
+        
+    </head>
+    <style>
+    
+        body {
+
+            background-color: white;
+
+        }
+   
+        #me {
+
+            display: block;
+            margin: auto;
+            margin-top: 5vh;
+
+        }
+
+        p {
+
+            width: 25%;
+            text-align: center;
+            margin: auto;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 22px;
+
+        }
+        
+        button {
+            
+            font-family: Source Sans Pro, sans-serif;
+            font-size: 14px;
+            background-color: #22dd22;
+            color: white;
+            border: 0px;
+            
+        }
+        
+        #word {
+            
+            height: 5vh;
+            margin-top: 5vh;
+            font-size: 50px;
+            width: 100%;
+            text-align: center;
+            
+        }
+
+    </style>
+    <body>
+
+        <p id="word" >CLICK A LETTER</p>
+        <canvas id="me" >Start streaming on a modern browser!</canvas>
+        <button style="float: left; margin-left: 34vw; width: 15vw; margin-bottom: 25px;" onclick="undo()" >UNDO</button>
+        <button style="margin-left: 2vw; width: 15vw; margin-bottom: 25px;" onclick="enter()" >ENTER</button>
+        <p>LETTER CUBED IS #MADEWITHIO</p>
+
+    </body>
+    <script>
+
+        var el = document.getElementById("me")
+            el.width = window.innerHeight
+            el.height = window.innerHeight * 2/3
+
+        var c = el.getContext("2d")
+            var w = c.canvas.width
+            var h = c.canvas.height
+
+  
+        var x_Ra = [-1, 1]
+        var y_Ra = [-1, 1]
+
+        var theta = 1
+        var alpha = 0.25
+        var beta = 0.01
+        var rotationSpeed = alpha*Math.PI/30
+
+        var lightSources = [[1, 1, 0.5], [-1, -1, 0.5]]
+        var luminosity = 2
+        var distW = 2.5
+        var shininess = 4
+        
+        var f1 = function(x)
+        {return Math.sqrt(-Math.pow(x, 2)+1)}
+        var f2 = function(x)
+        {return -Math.sqrt(-Math.pow(x, 2)+1)}
+
+        var i_hat = [1, 0]
+        var j_hat = [0, 1]
+
+            if ( Math.tan(theta) >= 0 )
+            {
+
+                if ( theta > Math.PI )
+                {
+
+                    i_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f2(i_hat[0])
+
+                }
+                else {
+
+                    i_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f1(i_hat[0])
+
+                }
+
+            }
+            else
+            {
+
+                if ( theta > Math.PI )
+                {
+                
+                    i_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f2(i_hat[0])
+
+                }
+                else {
+
+                    i_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f1(i_hat[0])
+
+                }  
+
+            }
+
+            var nTheta = theta+Math.PI/2
+            if ( Math.tan(nTheta) >= 0 )
+            {
+
+                if ( nTheta > Math.PI )
+                {
+
+                    j_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f2(j_hat[0])
+
+                }
+                else {
+                    
+                    j_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f1(j_hat[0])
+
+                }
+
+            }
+            else
+            {
+
+                if ( nTheta > Math.PI )
+                {
+
+                    j_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f2(j_hat[0])
+
+                }
+                else {
+                    
+                    j_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f1(j_hat[0])
+
+                }  
+
+            }
+
+
+        var mini = function(x)
+        {
+
+            return 1/(1+Math.exp(-x+2.5))
+
+        }
+        var blend = function(hue, int)
+        {
+
+            var mi = 0
+            var max = 0
+            for ( var i = 0; i < hue.length; i++ )
+            {
+
+                if ( hue[i] > max )
+                {
+
+                    mi = i
+                    max = hue[i]
+
+                }
+
+            }
+            r = [255*int*hue[0]/hue[mi], 255*int*hue[1]/hue[mi], 255*int*hue[2]/hue[mi]]
+            return r
+
+        }
+        var co = function(rad)
+        {
+
+            if ( rad > Math.PI/2 ){ return -(rad-Math.PI/2)+Math.PI/2 }
+            else if ( rad < -Math.PI ){ return (rad-Math.PI/2)-Math.PI/2 }
+            else { return rad }
+
+        }
+        var brightness = function(x, y, z, lTheta, lPhi)
+        {
+
+            var avgx = x_Ra[1]/2
+            var avgy = y_Ra[1]/2
+            var avgz = 0
+            for ( var i = 0; i < lightSources.length; i++ )
+            {avgz+=lightSources[i][2]}
+            avgz/=lightSources.length
+            var dist = (Math.pow(avgx, 2)+Math.pow(avgy, 2)+Math.pow(avgz, 2))
+            var displacements = []
+            var angSThetas = []
+            var angSPhis = []
+            var angLThetas = []
+            var angLPhis = []
+
+            for ( var i = 0; i < lightSources.length; i++ )
+            {
+
+                displacements.push(dist/Math.max(Math.pow(x-lightSources[i][0], shininess)+
+                Math.pow(y-lightSources[i][1], shininess)+Math.pow(z-lightSources[i][2], shininess), 0.01))
+                angSThetas.push(co(Math.PI/2+Math.atan(lightSources[i][2]/Math.max(lightSources[i][0], 0.01))))
+                angSPhis.push(co(Math.PI/2+Math.atan(lightSources[i][2]/Math.max(lightSources[i][1], 0.01))))
+                angLThetas.push(1/Math.max(Math.pow(co(angSThetas[i])-co(lTheta), 2), 0.01))
+                angLPhis.push(1/Math.max(Math.pow(co(angSPhis[i])-co(lPhi), 2), 0.01))
+            
+            }
+            
+            var displacement = 0
+            var angLTheta = 0
+            var angLPhi = 0
+
+            for ( var i = 0; i < lightSources.length; i++ )
+            {
+
+                displacement+=displacements[i]
+                angLTheta+=angLThetas[i]
+                angLPhi+=angLPhis[i]
+
+            }
+
+            return mini(luminosity*(mini(displacement)+1/distW*(mini(angLTheta)+mini(angLPhi))))
+
+        };
+        var project2d = function(x, y, z)
+        {
+
+            away = (y-y_Ra[0])/(y_Ra[1]-y_Ra[0])
+            avg = (y_Ra[1]-y_Ra[0]+x_Ra[1]-x_Ra[0])/2
+            return [1/4*away+(-1/2*away+1)*(x-x_Ra[0])/(x_Ra[1]-x_Ra[0]),away+z/avg]
+
+        }
+        var project = function(x, y, z)
+        {
+
+            return project2d(i_hat[0]*x+j_hat[0]*y, i_hat[1]*x+j_hat[1]*y, z)
+
+        }
+
+
+        c.scale(1, -1)
+        c.translate(0, -h)
+
+        
+        var letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
+                       'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        
+        var relative_frequency = [8.497, 1.492, 2.202, 4.253, 11.162, 2.228, 2.015, 6.094, 7.546, 0.153, 1.292, 4.025, 2.406, 6.749, 7.507, 1.929, 0.095, 7.587, 6.327, 9.356, 2.758, 0.978, 2.560, 0.150, 1.994, 0.077]
+        
+        Object.defineProperty(Array.prototype, 'shuffle', {
+            value: function() {
+                for (let i = this.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [this[i], this[j]] = [this[j], this[i]];
+                }
+                return this;
+            }
+        });
+        
+        var letters_to_use = []
+        var size_exceeded = false
+        while (!size_exceeded) {
+            for (var i = 0; i < letters.length; i++) {
+                var duplicate = false
+                for (var j = 0; j < letters_to_use.length; j++) {
+                    if ( letters_to_use[j] == i ) {
+                        duplicate = true
+                    }
+                }
+                num = Math.random() * 100
+                if ( num < 13 * relative_frequency[i] && !duplicate ) {
+                    letters_to_use.push(i)
+                }
+            }
+            if (letters_to_use.length > 13) {
+                size_exceeded = true
+            }
+        }
+        
+        letters_to_use.shuffle()
+        letters_to_use.splice(13, letters_to_use.length - 13)
+        
+        var target_distances = []
+        
+        var min = 100
+        for ( var i = 0; i < letters_to_use.length; i++ ) {
+            min = Math.min(min, relative_frequency[letters_to_use[i]])  
+        }
+        for ( var i = 0; i < letters_to_use.length; i++ ) {
+            target_distances.push(min / relative_frequency[letters_to_use[i]])
+        }
+        
+        var coordinates = []
+        for ( var i = 0; i < letters_to_use.length; i++ ) {
+            var prev_coordinate = [2 * Math.random() - 1, 2 * Math.random() - 1, 2 * Math.random() - 1]
+            for ( var round = 0; round < 3; round++ ) {
+                
+                var current_dist = Math.sqrt(Math.pow(prev_coordinate[0], 2) + Math.pow(prev_coordinate[1], 2) + Math.pow(prev_coordinate[2], 2))
+                if ( current_dist < target_distances[letters_to_use[i]] ){
+                    
+                    var max_co = 0
+                    for ( var j = 1; j < prev_coordinate.length; j++ )
+                    {
+                        if ( Math.abs(prev_coordinate[j]) > Math.abs(prev_coordinate[max_co]) ) {
+                            max_co = j
+                        }
+                    }
+                    prev_coordinate[max_co] = 2 * Math.random() - 1
+                    
+                }
+                else {
+                    
+                    var min_co = 0
+                    for ( var j = 1; j < prev_coordinate.length; j++ )
+                    {
+                        if ( Math.abs(prev_coordinate[j]) < Math.abs(prev_coordinate[min_co]) ) {
+                            min_co = j
+                        }
+                    }
+                    prev_coordinate[min_co] = 2 * Math.random() - 1
+                    
+                }
+                
+            }
+            coordinates.push(prev_coordinate)
+        }
+        
+        var word = []
+        var word_indices = []
+        var turn = 0
+        var words = [[], []]
+        
+        var timeA = 300
+        var timeB = 300
+        
+        var countTimeA = function() {
+            timeA--   
+        }
+        var countTimeB = function() {
+            timeB--   
+        }
+        
+        var scoreA = 0
+        var scoreB = 0
+        var timerA = setInterval(countTimeA, 1000)
+        var timerB;
+        
+        var v = true
+        var refresh = function()
+        {
+
+            if ( theta >= 2*Math.PI )
+            {
+
+                theta = 0+theta-2*Math.PI
+
+            }
+
+            if ( Math.tan(theta) >= 0 )
+            {
+
+                if ( theta > Math.PI )
+                {
+
+                    i_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f2(i_hat[0])
+
+                }
+                else {
+
+                    i_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f1(i_hat[0])
+
+                }
+
+            }
+            else
+            {
+
+                if ( theta > Math.PI )
+                {
+                
+                    i_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f2(i_hat[0])
+
+                }
+                else {
+
+                    i_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(theta), 2)))
+                    i_hat[1] = f1(i_hat[0])
+
+                }  
+
+            }
+
+            var nTheta = (theta+Math.PI/2)%(2*Math.PI)
+            if ( Math.tan(nTheta) >= 0 )
+            {
+
+                if ( nTheta > Math.PI )
+                {
+
+                    j_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f2(j_hat[0])
+
+                }
+                else {
+                    
+                    j_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f1(j_hat[0])
+
+                }
+
+            }
+            else
+            {
+
+                if ( nTheta > Math.PI )
+                {
+
+                    j_hat[0] = Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f2(j_hat[0])
+
+                }
+                else {
+                    
+                    j_hat[0] = -Math.sqrt(-1/(-1-Math.pow(Math.tan(nTheta), 2)))
+                    j_hat[1] = f1(j_hat[0])
+
+                }  
+
+            }
+
+
+            c.fillStyle = "white"
+            c.fillRect(0, 0, w, h)
+
+            p1 = project(1, 0, 0)
+            p2 = project(0, 1, 0)
+
+            p1o = project(-1, 0, 0)
+            p2o = project(0, -1, 0)
+
+            c.strokeStyle = '#aaaaaa'
+
+            c.beginPath()
+            c.moveTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+            c.lineTo(w/4+w/2*p1o[0], h/4+h/2*p1o[1])
+            c.stroke()
+            c.beginPath()
+            c.moveTo(w/4+w/2*p2[0], h/4+h/2*p2[1])
+            c.lineTo(w/4+w/2*p2o[0], h/4+h/2*p2o[1])
+            c.stroke()
+            
+            for ( var point = 0; point < coordinates.length; point++ ) {
+                p = project(...coordinates[point])
+                c.save()
+                c.translate(0, h)
+                c.scale(1, -1)
+                c.fillStyle = '#000000'
+                c.font = '35px Source Sans Pro'
+                c.textAlign = 'center'
+                c.textBaseline = 'middle'
+                c.fillText(letters[letters_to_use[point]], w/4+w/2*p[0], h - (h/4+h/2*p[1]))
+                c.restore()
+            }
+            
+            c.lineWidth = 2
+            var color;
+            if ( turn % 2 == 0 ) {
+                c.fillStyle = 'rgba(20, 20, 200, 0.67)'
+                c.strokeStyle = 'rgba(20, 20, 200, 0.67)'
+            }
+            else {
+                c.fillStyle = 'rgba(200, 20, 20, 0.67)'
+                c.strokeStyle = 'rgba(200, 20, 20, 0.67)'
+            }
+            
+            for ( var i = 0; i < word_indices.length - 2; i++ ) {
+                
+                var p1 = project(...coordinates[word_indices[i]])
+                var p2 = project(...coordinates[word_indices[i + 1]])
+                var p3 = project(...coordinates[word_indices[i + 2]])
+                
+                c.beginPath()
+                c.moveTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+                c.lineTo(w/4+w/2*p2[0], h/4+h/2*p2[1])
+                c.lineTo(w/4+w/2*p3[0], h/4+h/2*p3[1])
+                c.lineTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+                c.fill()
+                c.stroke()
+                
+            }
+            
+            c.fillStyle = 'rgba(20, 20, 200, 0.15)'
+            c.strokeStyle = 'rgba(20, 20, 200, 0.15)'
+            for ( var i = 0; i < words[0].length; i++ ) {
+                for ( var j = 0; j < words[0][i].length - 2; j++ ) {
+                    
+                    var p1 = project(...coordinates[words[0][i][j]])
+                    var p2 = project(...coordinates[words[0][i][j + 1]])
+                    var p3 = project(...coordinates[words[0][i][j + 2]])
+
+                    c.beginPath()
+                    c.moveTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+                    c.lineTo(w/4+w/2*p2[0], h/4+h/2*p2[1])
+                    c.lineTo(w/4+w/2*p3[0], h/4+h/2*p3[1])
+                    c.lineTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+                    c.fill()
+                    c.stroke() 
+                    
+                }
+            }
+            
+            c.fillStyle = 'rgba(200, 20, 20, 0.15)'
+            c.strokeStyle = 'rgba(200, 20, 20, 0.15)'
+            for ( var i = 0; i < words[1].length; i++ ) {
+                for ( var j = 0; j < words[1][i].length - 2; j++ ) {
+                    
+                    var p1 = project(...coordinates[words[1][i][j]])
+                    var p2 = project(...coordinates[words[1][i][j + 1]])
+                    var p3 = project(...coordinates[words[1][i][j + 2]])
+
+                    c.beginPath()
+                    c.moveTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+                    c.lineTo(w/4+w/2*p2[0], h/4+h/2*p2[1])
+                    c.lineTo(w/4+w/2*p3[0], h/4+h/2*p3[1])
+                    c.lineTo(w/4+w/2*p1[0], h/4+h/2*p1[1])
+                    c.fill()
+                    c.stroke() 
+                    
+                }
+            }
+            
+            c.save()
+            c.translate(0, h)
+            c.scale(1, -1)
+            c.font = '50px Source Sans Pro'
+            c.textBaseline = 'center'
+            
+            c.textAlign = 'left'
+            c.fillStyle = 'rgb(20, 20, 200)'
+            c.fillText(Math.round(scoreA * 100), 0, h - (h/2))
+            c.font = '35px Source Sans Pro'
+            c.fillText(timeA, 0, h - (h * 3/4))
+            
+            c.textAlign = 'right'
+            c.fillStyle = 'rgb(200, 20, 20)'
+            c.font = '50px Source Sans Pro'
+            c.fillText(Math.round(scoreB * 100), w, h - (h/2))
+            c.font = '35px Source Sans Pro'
+            c.fillText(timeB, w, h - (h * 3/4))
+            
+            c.restore()
+            
+            document.getElementById("word").innerHTML = word.join("")
+            window.requestAnimationFrame(refresh)
+
+        }
+
+        var moveV = false
+        var rotate = function(e)
+        {
+
+            if ( moveV ){ theta+=beta*e.movementX }
+            if ( theta < 0 ){ theta = 2*Math.PI+theta }
+            theta%=2*Math.PI
+
+        }
+       
+        window.addEventListener("mousemove", rotate)
+        window.addEventListener("mousedown", function(){ moveV = true })
+        window.addEventListener("mouseup", function(){ moveV = false })
+        
+        var pick = function(e) {
+            
+            var x = e.clientX - c.canvas.offsetLeft
+            var y = h - (e.clientY - c.canvas.offsetTop)
+            
+            var min_dist = 0
+            for ( var i = 1; i < coordinates.length; i++ ) {
+                point1 = project(...coordinates[i])
+                point2 = project(...coordinates[min_dist])
+                if ( Math.sqrt(Math.pow(x - (w/4+w/2*point1[0]), 2) + Math.pow(y - (h/4+h/2*point1[1]), 2)) < Math.sqrt(Math.pow(x - (w/4+w/2*point2[0]), 2) + Math.pow(y - (h/4+h/2*point2[1]), 2)) )
+                {
+                    min_dist = i
+                }
+            }
+            
+            if ( word[word.length - 1] != letters[letters_to_use[min_dist]] ) {
+                word.push(letters[letters_to_use[min_dist]])
+                word_indices.push(min_dist)   
+            }
+            
+        }
+        
+        var moved = false
+        var decideClick = function(e) {
+            if ( e.type == "mousedown" ) {
+                moved = false
+            }
+            if ( e.type == "mousemove" ) {
+                moved = true
+            }
+            if ( e.type == "mouseup" && moved == false ) {
+                pick(e)
+            }
+        }
+        
+        c.canvas.addEventListener("mousedown", decideClick)
+        c.canvas.addEventListener("mousemove", decideClick)
+        c.canvas.addEventListener("mouseup", decideClick)
+        
+        var undo = function() {
+            if ( word.length > 0 ) {
+                word.splice(word.length - 1, 1)
+                word_indices.splice(word_indices.length - 1, 1)
+            }
+        }
+        var enter = function() {  
+            
+            var duplicate = false
+            for (var t = 0; t < words.length; t++) {
+                for ( var w = 0; w < words[t].length; w++ ) {
+                    
+                    current_word = []
+                    for ( var char = 0; char < words[t][w].length; char++ ) {
+                        current_word.push(letters[letters_to_use[words[t][w][char]]])
+                    }
+                    
+                    if ( current_word.join("") == word.join("") ) {
+                        duplicate = true
+                    }
+                    
+                }
+            }
+            
+            if ( !duplicate ) {
+                
+                for ( var i = 0; i < word_indices.length - 2; i++ ) {
+                
+                    var p1 = coordinates[word_indices[i]]
+                    var p2 = coordinates[word_indices[i + 1]]
+                    var p3 = coordinates[word_indices[i + 2]]
+                    
+                    var dist1 = Math.sqrt(Math.pow(p1[0] - p2[0], 2) + Math.pow(p1[1] - p2[1], 2) + Math.pow(p1[2] - p2[2], 2))
+                    var dist2 = Math.sqrt(Math.pow(p2[0] - p3[0], 2) + Math.pow(p2[1] - p3[1], 2) + Math.pow(p2[2] - p3[2], 2))
+                    var dist3 = Math.sqrt(Math.pow(p3[0] - p1[0], 2) + Math.pow(p3[1] - p1[1], 2) + Math.pow(p3[2] - p1[2], 2))
+                    
+                    var s = (dist1 + dist2 + dist3) / 2
+                    
+                    if ( turn % 2 == 0 ) {
+                        scoreA += Math.sqrt(s * (s - dist1) * (s - dist2) * (s - dist3))
+                    }
+                    else {
+                        scoreB += Math.sqrt(s * (s - dist1) * (s - dist2) * (s - dist3))
+                    }
+                
+                }
+                
+                words[turn % 2].push(word_indices)
+                word = []
+                word_indices = []
+                
+                turn++
+                
+                if ( turn % 2 == 0 && timeA <= 0 ) {
+                    turn++
+                }
+                if ( turn % 2 == 1 && timeB <= 0 ) {
+                    turn++
+                }
+                
+                if ( turn % 2 == 1 ) {
+                    clearInterval(timerA)
+                    timerB = setInterval(countTimeB, 1000)
+                }
+                else {
+                    clearInterval(timerB)
+                    timerA = setInterval(countTimeA, 1000)
+                }
+                
+            }
+                 
+        }
+        
+        refresh()
+
+    </script>
+</html>
