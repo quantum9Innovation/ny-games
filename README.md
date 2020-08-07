@@ -1,2 +1,4 @@
-# ny-games
-A recreation of all the NYT word games
+# New York Times Word Games
+A recreation of all the NYT word games in multiple languages.
+Starting with ... "Letter Boxed" ... and ending with **the crossword.**
+## **All for free.**
